@@ -12,7 +12,7 @@ namespace UFlow.Installer {
         private const string c_url = "https://github.com/Danon5/uflow.git";
         private const string c_installer_path = "Assets/UFlowInstaller";
         private static readonly string s_path = $"{Application.dataPath}/UFlow";
-        private static readonly string s_cmd = $"clone --recurse-submodules -j8 {c_url} {s_path}";
+        private static readonly string s_cmd = $"clone --recurse-submodules -j8 {c_url} \"{s_path}\"";
         private static readonly List<InstallRequest> s_installRequests = new();
         private static InstallRequest s_currentRequest;
 
