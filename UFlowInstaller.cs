@@ -11,22 +11,53 @@ namespace UFlow.Installer {
     internal static class UFlowInstaller {
         private const string c_url = "https://github.com/Danon5/uflow.git";
         private const string c_installer_path = "Assets/UFlowInstaller";
+        private const string c_path_local = "UFlow";
+        private const string c_work_tree_cmd = "rev-parse --is-inside-work-tree";
         private static readonly string s_path = $"{Application.dataPath}/UFlow";
-        private static readonly string s_cmd = $"clone --recurse-submodules -j8 {c_url} \"{s_path}\"";
+        private static readonly string s_submoduleCmd = $"submodule add {c_url} \"{c_path_local}/\"";
+        private static readonly string s_cloneCmd = $"clone --recurse-submodules -j8 {c_url} \"{s_path}\"";
         private static readonly List<InstallRequest> s_installRequests = new();
         private static InstallRequest s_currentRequest;
 
         [MenuItem("Assets/Install UFlow", false, 0)]
         private static void Install() {
-            var startInfo = new ProcessStartInfo("git", s_cmd)
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-            };
-            
+            var isSubmodule = IsRootPathAGitRepository();
+
+            ProcessStartInfo startInfo;
+
+            if (isSubmodule) {
+                startInfo = new ProcessStartInfo("git", s_submoduleCmd)
+                {
+                    WorkingDirectory = Application.dataPath,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+            }
+            else {
+                startInfo = new ProcessStartInfo("git", s_cloneCmd)
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+            }
+
             var process = new Process();
             process.StartInfo = startInfo;
+            process.OutputDataReceived += (_, args) => {
+                if (args.Data == null) return;
+                Debug.Log(args.Data);
+            };
+            process.ErrorDataReceived += (_, args) => {
+                if (args.Data == null) return;
+                Debug.Log(args.Data);
+            };
             process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
             process.WaitForExit();
 
             if (Directory.Exists(c_installer_path))
@@ -38,6 +69,35 @@ namespace UFlow.Installer {
             ProcessInstalls();
 
             AssetDatabase.Refresh();
+        }
+        
+        private static bool IsRootPathAGitRepository() {
+            var startInfo = new ProcessStartInfo("git", c_work_tree_cmd) {
+                WorkingDirectory = Application.dataPath,
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+
+            var outputLine = string.Empty;
+
+            var process = new Process();
+            process.StartInfo = startInfo;
+            process.OutputDataReceived += (_, args) => {
+                if (args.Data == null) return;
+                outputLine = args.Data;
+            };
+            process.ErrorDataReceived += (_, args) => {
+                if (args.Data == null) return;
+                outputLine = args.Data;
+            };
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            process.WaitForExit();
+            
+            return outputLine.Equals("true");
         }
         
         private static void EnqueuePackageInstall(in string packageName)
